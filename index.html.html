@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Viaje espacial — frases</title>
+<link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" rel="stylesheet">
+<style>
+  :root{ --neon:#7CFF6B; --bg1:#03030b; --bg2:#0b0f1a; }
+  html,body{height:100%}
+  body{
+    margin:0; overflow:hidden;
+    background: radial-gradient(1200px 800px at 50% 40%, var(--bg2), var(--bg1) 60%);
+    font-family:'Patrick+Hand',system-ui,sans-serif;
+    touch-action:none;
+  }
+  canvas{position:fixed; inset:0; display:block}
+  .center{ position:fixed; inset:0; display:grid; place-items:center; pointer-events:none; }
+  .center h1{
+    margin:0; font-size: clamp(48px, 14vw, 200px); color:var(--neon);
+    letter-spacing:2px;
+    text-shadow:
+      0 0 6px rgba(124,255,107,0.9),
+      0 0 16px rgba(124,255,107,0.7),
+      0 0 36px rgba(124,255,107,0.5);
+    animation:pulse 3.8s ease-in-out infinite;
+  }
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="center"><h1>mi vida</h1></div>
+
+<script>
+const DPR = Math.max(1, Math.min(2, devicePixelRatio||1));
+const cvs = document.getElementById('c');
+const ctx = cvs.getContext('2d');
+function resize(){
+  const w = innerWidth, h = innerHeight;
+  cvs.style.width=w+'px'; cvs.style.height=h+'px';
+  cvs.width=Math.floor(w*DPR); cvs.height=Math.floor(h*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+resize(); addEventListener('resize', resize);
+
+const phrases = ["Te amo","Mi wawi preciosa","Mi amor","Mi cielo","Me encantas","Mi bonita"];
+
+const rand = (a,b)=> a + Math.random()*(b-a);
+const clamp=(v,a,b)=> Math.max(a, Math.min(b,v));
+const centerPt = ()=>({cx: innerWidth/2, cy: innerHeight/2});
+
+class Star3D{
+  constructor(){ this.reset(true); }
+  reset(first=false){
+    this.x = rand(-1,1); this.y = rand(-1,1);
+    this.zMax = 2.0; this.zMin = 0.25;
+    this.z = first ? rand(this.zMin, this.zMax) : this.zMax;
+    this.speed = rand(0.35, 0.6);
+    this.prev = null;
+  }
+  update(dt){
+    this.z -= this.speed*dt;
+    if(this.z <= this.zMin){ this.reset(); }
+    const {cx, cy} = centerPt();
+    const f = 420;
+    const sx = cx + (this.x * f) / this.z;
+    const sy = cy + (this.y * f) / this.z;
+    if(this.prev){
+      ctx.strokeStyle = "rgba(255,255,255,0.9)";
+      ctx.lineWidth = clamp(3/this.z, 0.5, 3);
+      ctx.beginPath(); ctx.moveTo(this.prev.x, this.prev.y); ctx.lineTo(sx, sy); ctx.stroke();
+    }else{
+      ctx.fillStyle = "rgba(255,255,255,0.8)";
+      ctx.beginPath(); ctx.arc(sx, sy, clamp(2/this.z, 0.3, 2), 0, Math.PI*2); ctx.fill();
+    }
+    this.prev = {x:sx, y:sy};
+  }
+}
+
+function measure(text, size){
+  ctx.save(); ctx.font = `${size}px 'Patrick Hand', sans-serif`; const w = ctx.measureText(text).width; ctx.restore(); return w;
+}
+class Text3D{
+  constructor(txt){ this.txt = txt; this.reset(true); }
+  reset(first=false){
+    this.x = rand(-1,1); this.y = rand(-1,1);
+    this.zMax = 2.2; this.zMin = 0.28;
+    this.z = first ? rand(this.zMin, this.zMax) : this.zMax;
+    this.speed = rand(0.28, 0.48);
+    this.baseSize = rand(22, 42);
+    this.w = measure(this.txt, this.baseSize);
+  }
+  draw(){
+    const {cx, cy} = centerPt();
+    const f = 520;
+    const sx = cx + (this.x * f) / this.z;
+    const sy = cy + (this.y * f) / this.z;
+    const size = this.baseSize / this.z;
+    const t = (this.zMax - this.z) / (this.zMax - this.zMin);
+    let alpha = 1;
+    if(t < 0.15) alpha = t/0.15; else if(t > 0.85) alpha = (1 - t)/0.15; alpha = clamp(alpha, 0, 1);
+    ctx.font = `${size}px 'Patrick Hand', sans-serif`;
+    ctx.fillStyle = "#7CFF6B";
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = "#7CFF6B";
+    ctx.shadowBlur = 16 * clamp(1/this.z, 0.6, 2.2);
+    ctx.fillText(this.txt, sx, sy);
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  }
+  update(dt){
+    this.z -= this.speed*dt;
+    if(this.z <= this.zMin){ this.reset(); return; }
+    this.draw();
+  }
+}
+
+const stars = Array.from({length: 220}, ()=>new Star3D());
+const texts = Array.from({length: 16}, ()=> new Text3D(phrases[Math.random()*phrases.length|0]));
+
+let last = performance.now();
+function loop(now){
+  const dt = (now - last) / 1000; last = now;
+  ctx.clearRect(0,0,innerWidth,innerHeight);
+  stars.forEach(s=>s.update(dt));
+  texts.forEach(t=>t.update(dt));
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
